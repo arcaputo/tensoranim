@@ -2,7 +2,7 @@
 
 **Animated tensor transformation visualizations** — a Manim-powered companion to [TensorDiagram](https://github.com/hardik-vala/tensordiagram).
 
-Where TensorDiagram produces *static* tensor diagrams, `tensoranim` produces *animated* ones, showing how tensors flow through reshape, transpose, matmul, softmax, attention, and more.
+trying to animate some of tensor diagrams visualizations
 
 ---
 
