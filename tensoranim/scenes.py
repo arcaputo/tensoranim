@@ -31,7 +31,7 @@ from manim import (
     rate_functions,
 )
 
-from core import (
+from .core import (
     TensorGrid, make_label, make_arrow, shape_tag,
     PALETTE,
 )

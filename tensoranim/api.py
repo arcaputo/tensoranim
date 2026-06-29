@@ -187,3 +187,45 @@ def animate_attention(
         AttentionScene, output_path=output_path, quality=quality, fps=fps,
         Q=Q, K=K, V=V,
     )
+
+
+def render_model(
+    graph,
+    output_path: str = "model.mp4",
+    quality:     str = "medium_quality",
+    fps:         int = 15,
+    cell_size:   float = None,
+    show_values: bool  = False,
+) -> str:
+    """
+    Render a TensorGraph as a single coherent forward-pass animation.
+
+    Parameters
+    ----------
+    graph        : TensorGraph  (already populated with .input() and .op() calls)
+    output_path  : destination mp4 path
+    quality      : manim quality string
+    fps          : frames per second
+    cell_size    : override auto cell sizing
+    show_values  : show numeric values inside cells
+
+    Example
+    -------
+        import numpy as np
+        import tensoranim as ta
+        from tensoranim.ops import TensorState, TensorGraph, LinearOp, SoftmaxOp
+
+        W = TensorState(np.random.randn(16, 8), name="W", color=ta.PALETTE["fill_1"])
+        g = TensorGraph()
+        g.input("x", TensorState(np.random.randn(4, 8), name="x"))
+        g.op(LinearOp(weight=W), inputs=["x"], output="h")
+        g.op(SoftmaxOp(),        inputs=["h"], output="logits")
+        ta.render_model(g, "mlp.mp4")
+    """
+    from .model_scene import ModelScene
+    graph.run()
+    ModelScene.graph       = graph
+    ModelScene.cell_size   = cell_size
+    ModelScene.show_values = show_values
+    return render_scene(ModelScene, output_path=output_path,
+                        quality=quality, fps=fps)

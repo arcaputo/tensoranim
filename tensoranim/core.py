@@ -185,3 +185,94 @@ def make_arrow(start_mob, end_mob, label: str = "", color: str = PALETTE["arrow"
 def shape_tag(shape: tuple, font_size: int = 16) -> Text:
     s = " × ".join(str(d) for d in shape)
     return Text(f"({s})", font_size=font_size, color=PALETTE["dim_tag"])
+
+
+# ── 3-D primitives ────────────────────────────────────────────────────────────
+
+from manim import ThreeDScene, Prism, ThreeDAxes, PI, TAU, IN, OUT
+
+class ThreeDTensorGrid(VGroup):
+    """
+    Renders a 3-D tensor as a grid of Prisms in true 3-D space.
+    For use inside TensorScene3D (a ThreeDScene subclass).
+
+    Axis convention: X = columns (+right), Y = -rows (+down), Z = -depth (+into screen)
+    matching numpy's (D, R, C) layout.
+    """
+
+    def __init__(
+        self,
+        data: np.ndarray,
+        cell_size: float = 0.5,
+        fill_color: ColorSpec = PALETTE["fill_0"],
+        fill_opacity: float = 0.75,
+        stroke_width: float = 1.0,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        data = np.asarray(data)
+        if data.ndim != 3:
+            raise ValueError("ThreeDTensorGrid requires a 3-D tensor.")
+        self.data = data
+        self.cell_size = cell_size
+        self._cells: dict = {}
+        D, R, C = data.shape
+        cs = cell_size
+        for d in range(D):
+            for r in range(R):
+                for c in range(C):
+                    val = float(data[d, r, c])
+                    color = _resolve_color(fill_color, (d, r, c), val, PALETTE["fill_0"])
+                    box = Prism(
+                        dimensions=[cs * 0.92, cs * 0.92, cs * 0.92],
+                        fill_color=color,
+                        fill_opacity=fill_opacity,
+                        stroke_color=PALETTE["border"],
+                        stroke_width=stroke_width,
+                    )
+                    box.move_to(np.array([c * cs, -r * cs, -d * cs]))
+                    self._cells[(d, r, c)] = box
+                    self.add(box)
+
+    def cell(self, d: int, r: int, c: int):
+        return self._cells[(d, r, c)]
+
+    def get_slice_d(self, d: int) -> VGroup:
+        return VGroup(*[v for (dd, r, c), v in self._cells.items() if dd == d])
+
+    def get_slice_r(self, r: int) -> VGroup:
+        return VGroup(*[v for (d, rr, c), v in self._cells.items() if rr == r])
+
+    def get_slice_c(self, c: int) -> VGroup:
+        return VGroup(*[v for (d, r, cc), v in self._cells.items() if cc == c])
+
+    def get_row(self, d: int, r: int) -> VGroup:
+        return VGroup(*[v for (dd, rr, c), v in self._cells.items()
+                        if dd == d and rr == r])
+
+    def get_col(self, d: int, c: int) -> VGroup:
+        return VGroup(*[v for (dd, r, cc), v in self._cells.items()
+                        if dd == d and cc == c])
+
+
+class TensorScene3D(ThreeDScene):
+    """
+    Base class for 3-D tensor scenes.
+    Sets camera to isometric angle; provides title/subtitle as fixed-frame overlays.
+    """
+
+    def setup(self):
+        self.camera.background_color = PALETTE["bg"]
+        self.set_camera_orientation(phi=65 * PI / 180, theta=-45 * PI / 180)
+
+    def title(self, text: str) -> Text:
+        t = Text(text, font_size=24, color=PALETTE["title"])
+        t.to_corner(UP + LEFT, buff=0.3)
+        self.add_fixed_in_frame_mobjects(t)
+        return t
+
+    def subtitle(self, text: str) -> Text:
+        t = Text(text, font_size=16, color=PALETTE["dim_tag"])
+        t.to_edge(DOWN, buff=0.3)
+        self.add_fixed_in_frame_mobjects(t)
+        return t
