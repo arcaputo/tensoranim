@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tensoranim"
+version = "0.1.0"
+description = "Animated tensor transformation visualizations built on Manim"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = [
+    "manim>=0.18",
+    "numpy>=1.21",
+]
+
+[project.optional-dependencies]
+torch = ["torch"]
+jax   = ["jax"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["tensoranim"]
