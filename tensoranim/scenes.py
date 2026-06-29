@@ -31,7 +31,7 @@ from manim import (
     rate_functions,
 )
 
-from .core import (
+from core import (
     TensorGrid, make_label, make_arrow, shape_tag,
     PALETTE,
 )
@@ -679,9 +679,10 @@ class AttentionScene(TensorScene):
         sc_shape = shape_tag((L, S)); sc_shape.next_to(sc_grid_ghost, DOWN, buff=SMALL_BUFF)
         sc_lbl   = make_label("scores  (Q @ Kᵀ / √d)", 14)
         sc_lbl.next_to(sc_grid_ghost, UP, buff=SMALL_BUFF)
+        sc_group = VGroup(sc_grid_ghost, sc_shape, sc_lbl)
 
         arr1 = make_arrow(kt_grid, sc_grid_ghost, label="/ √d")
-        self.play(Create(arr1), FadeIn(sc_grid_ghost), FadeIn(sc_shape), FadeIn(sc_lbl))
+        self.play(Create(arr1), FadeIn(sc_group))
         self.wait(0.3)
 
         # fill heat-map column by column
@@ -711,10 +712,10 @@ class AttentionScene(TensorScene):
             FadeOut(q_lbl), FadeOut(kt_lbl),
             FadeOut(q_shape), FadeOut(kt_shape),
             FadeOut(arr1),
-            sc_grid_ghost.animate.move_to(LEFT * 3.2),
+            sc_group.animate.move_to(LEFT * 3.2),
         )
-        sc_shape.next_to(sc_grid_ghost, DOWN, buff=SMALL_BUFF)
-        sc_lbl.next_to(sc_grid_ghost,   UP,   buff=SMALL_BUFF)
+        # sc_shape.next_to(sc_grid_ghost, DOWN, buff=SMALL_BUFF)
+        # sc_lbl.next_to(sc_grid_ghost,   UP,   buff=SMALL_BUFF)
         self.wait(0.3)
 
         at_grid = TensorGrid(
@@ -724,9 +725,10 @@ class AttentionScene(TensorScene):
         at_grid.move_to(RIGHT * 2.0)
         at_shape = shape_tag((L, S)); at_shape.next_to(at_grid, DOWN, buff=SMALL_BUFF)
         at_lbl   = make_label("attn weights", 14); at_lbl.next_to(at_grid, UP, buff=SMALL_BUFF)
+        attn_group = VGroup(at_grid, at_shape, at_lbl)
 
         arr2 = make_arrow(sc_grid_ghost, at_grid, label="softmax")
-        self.play(Create(arr2), FadeIn(at_grid), FadeIn(at_shape), FadeIn(at_lbl))
+        self.play(Create(arr2), FadeIn(attn_group))
         self.wait(0.2)
 
         attn_fn = attn_color()
@@ -762,12 +764,16 @@ class AttentionScene(TensorScene):
         self.play(FadeIn(sub3))
 
         self.play(
-            FadeOut(sc_grid_ghost), FadeOut(sc_shape), FadeOut(sc_lbl),
+            FadeOut(sc_grid_ghost),
+            FadeOut(sc_shape),
+            FadeOut(sc_lbl),
             FadeOut(arr2),
-            at_grid.animate.move_to(LEFT * 3.8),
+            # at_grid.animate.move_to(LEFT * 3.8),
+            attn_group.animate.move_to(LEFT * 3.8)
         )
-        at_shape.next_to(at_grid, DOWN, buff=SMALL_BUFF)
-        at_lbl.next_to(at_grid,   UP,   buff=SMALL_BUFF)
+        #at_shape.animate.next_to(at_grid, DOWN, buff=SMALL_BUFF)
+        #at_lbl.animate.next_to(at_grid, UP, buff=SMALL_BUFF)
+        self.wait(0.3)
 
         at_sym2 = Text("@", color=PALETTE["title"], font_size=32)
         v_grid  = TensorGrid(V, fill_color=PALETTE["fill_4"], show_values=False)
@@ -799,37 +805,49 @@ class AttentionScene(TensorScene):
         self.play(Create(arr3), FadeIn(out_grid), FadeIn(out_shape), FadeIn(out_lbl))
         self.wait(0.2)
 
-        out_color = PALETTE["fill_3"]
+        out_abs = np.abs(out)
+        out_max = out_abs.max() + 1e-9
+
+        # True matmul geometry: for each out[r,c] = dot(attn_row_r, V_col_c)
         for r in range(L):
-            hi_attn = [
-                at_grid.cell(r, c).animate.set_fill(color=PALETTE["fill_2"], opacity=0.95)
-                for c in range(S)
-            ]
-            hi_v = [
-                v_grid.cell(s, c).animate.set_fill(color=PALETTE["fill_2"], opacity=0.95)
-                for s in range(S) for c in range(d)
-            ]
-            self.play(AnimationGroup(*(hi_attn + hi_v), lag_ratio=0.02), run_time=0.35)
+            for c in range(d):
+                # highlight row r of attn and column c of V
+                row_anims = [
+                    at_grid.cell(r, s).animate.set_fill(
+                        color=PALETTE["fill_2"], opacity=0.9)
+                    for s in range(S)
+                ]
+                col_anims = [
+                    v_grid.cell(s, c).animate.set_fill(
+                        color=PALETTE["fill_3"], opacity=0.9)
+                    for s in range(S)
+                ]
+                self.play(
+                    AnimationGroup(*(row_anims + col_anims), lag_ratio=0.02),
+                    run_time=0.3
+                )
 
-            fill_out = [
-                out_grid.cell(r, c).animate.set_fill(color=out_color, opacity=0.88)
-                for c in range(d)
-            ]
-            self.play(AnimationGroup(*fill_out, lag_ratio=0.06), run_time=0.35)
+                # reveal out[r, c]
+                self.play(
+                    out_grid.cell(r, c).animate.set_fill(
+                        color=PALETTE["fill_3"],
+                        opacity=0.2 + 0.7 * (abs(out[r, c]) / out_max)
+                    ),
+                    run_time=0.2
+                )
 
-            restore_attn = [
-                at_grid.cell(r, c).animate.set_fill(
-                    color=attn_fn((r, c), attn[r, c]), opacity=0.9)
-                for c in range(S)
-            ]
-            restore_v = [
-                v_grid.cell(s, c).animate.set_fill(
-                    color=PALETTE["fill_4"], opacity=0.85)
-                for s in range(S) for c in range(d)
-            ]
-            self.play(AnimationGroup(*(restore_attn + restore_v), lag_ratio=0),
-                      run_time=0.15)
-
+                # reset row and col highlights
+                reset = [
+                    at_grid.cell(r, s).animate.set_fill(
+                        color=attn_fn((r, s), attn[r, s]), opacity=0.9)
+                    for s in range(S)
+                ] + [
+                    v_grid.cell(s, c).animate.set_fill(
+                        color=PALETTE["fill_4"], opacity=0.85)
+                    for s in range(S)
+                ]
+                self.play(AnimationGroup(*reset, lag_ratio=0), run_time=0.1)
+        
         self.wait(0.4)
         self.play(FadeOut(sub3))
 
